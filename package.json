@@ -1,0 +1,44 @@
+{
+  "name": "watchdiff",
+  "version": "0.1.0",
+  "description": "Watch a web page or a JSON API and get alerted when the part you care about changes. Zero runtime dependencies.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "watchdiff": "bin/watchdiff.js"
+  },
+  "main": "src/runner.js",
+  "exports": {
+    ".": "./src/runner.js",
+    "./config": "./src/config.js",
+    "./extract": "./src/extract.js",
+    "./notify": "./src/notify.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.js\"",
+    "demo": "node examples/demo.mjs"
+  },
+  "keywords": [
+    "monitoring",
+    "change-detection",
+    "website-monitor",
+    "api-monitor",
+    "alerts",
+    "scraping",
+    "telegram",
+    "slack",
+    "webhook",
+    "cron"
+  ],
+  "dependencies": {},
+  "devDependencies": {}
+}

@@ -1,0 +1,33 @@
+{
+  "_comment": "Public procurement: alert on new tenders in one department and one UNSPSC family. Point watchdiff at the API the portal itself uses, never at the HTML.",
+  "stateDir": ".watchdiff",
+  "defaults": {
+    "retries": 2,
+    "errorThreshold": 2,
+    "notify": ["telegram", "history"]
+  },
+  "notifiers": {
+    "telegram": { "type": "telegram", "botToken": "env:TELEGRAM_BOT_TOKEN", "chatId": "env:TELEGRAM_CHAT_ID" },
+    "history": { "type": "jsonl", "file": ".watchdiff/alerts.jsonl" }
+  },
+  "watchers": [
+    {
+      "name": "secop-software-tolima",
+      "label": "SECOP II — software en Tolima",
+      "url": "https://www.datos.gov.co/resource/p6dx-8zbt.json?$select=id_del_proceso&$where=departamento_entidad%20%3D%20%27Tolima%27%20AND%20starts_with(codigo_principal_de_categoria,%20%27V1.8111%27)%20AND%20estado_del_procedimiento%20!%3D%20%27Borrador%27&$order=fecha_de_publicacion_del%20DESC&$limit=50",
+      "extract": { "type": "json", "path": "[*].id_del_proceso" },
+      "mode": "list",
+      "alertOn": "added",
+      "quietHours": { "from": "22:00", "to": "07:00", "tz": "America/Bogota" }
+    },
+    {
+      "name": "secop-obra-ibague",
+      "label": "SECOP II — obra civil en Ibagué",
+      "url": "https://www.datos.gov.co/resource/p6dx-8zbt.json?$select=id_del_proceso&$where=ciudad_entidad%20%3D%20%27Ibagu%C3%A9%27%20AND%20starts_with(codigo_principal_de_categoria,%20%27V1.72%27)%20AND%20estado_del_procedimiento%20!%3D%20%27Borrador%27&$order=fecha_de_publicacion_del%20DESC&$limit=50",
+      "extract": { "type": "json", "path": "[*].id_del_proceso" },
+      "mode": "list",
+      "alertOn": "added",
+      "quietHours": { "from": "22:00", "to": "07:00", "tz": "America/Bogota" }
+    }
+  ]
+}

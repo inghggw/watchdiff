@@ -1,0 +1,43 @@
+{
+  "_comment": "Three common shapes: a price inside HTML, a legal/registry status, and a competitor's pricing page. Run `watchdiff check --dry` first to confirm each extractor reads what you expect.",
+  "stateDir": ".watchdiff",
+  "defaults": {
+    "retries": 2,
+    "retryDelayMs": 10000,
+    "notify": ["slack"]
+  },
+  "notifiers": {
+    "slack": { "type": "webhook", "url": "env:SLACK_WEBHOOK_URL", "template": "slack" },
+    "log": { "type": "console" },
+    "desktop": { "type": "command", "command": ["/usr/bin/notify-send"] }
+  },
+  "watchers": [
+    {
+      "name": "competitor-price",
+      "label": "Competitor — Pro plan price",
+      "url": "https://example.com/pricing",
+      "extract": { "type": "regex", "pattern": "Pro[\\s\\S]{0,200}?\\$\\s?([\\d.,]+)", "flags": "", "group": 1 },
+      "mode": "number",
+      "thresholdPercent": 2,
+      "notify": ["slack"]
+    },
+    {
+      "name": "registry-status",
+      "label": "Company registry — status of my supplier",
+      "url": "https://example.gov/registry/900123456",
+      "extract": { "type": "text", "stripHtml": true, "between": ["Estado de la matrícula", "Actividad económica"] },
+      "mode": "value",
+      "notify": ["slack", "log"],
+      "errorThreshold": 3
+    },
+    {
+      "name": "terms-page",
+      "label": "Vendor terms of service",
+      "url": "https://example.com/terms",
+      "extract": { "type": "text", "stripHtml": true },
+      "mode": "value",
+      "cooldownMinutes": 1440,
+      "notify": ["slack"]
+    }
+  ]
+}
