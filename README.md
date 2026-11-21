@@ -51,7 +51,7 @@ Check these first — if one fits, use it:
 - **[urlwatch](https://github.com/thp/urlwatch)** — the mature CLI in this space (Python, YAML, many reporters).
 - **Hosted:** Visualping, Distill.io, Sken.io.
 
-`watchdiff` exists for the narrow case those make awkward: a monitor you drop into a server next to a cron line, with no container, no Python, no database and no web UI; whose alerts you can shape; and whose behaviour under quiet hours, cooldowns and delivery failures is exactly specified. It is also deliberately readable — about 900 lines of plain JavaScript, no framework — because it is meant to be forked for one job.
+`watchdiff` exists for the narrow case those make awkward: a monitor you drop into a server next to a cron line, with no container, no Python, no database and no web UI; whose alerts you can shape; and whose behaviour under quiet hours, cooldowns and delivery failures is exactly specified. It is also deliberately readable — about 1,500 lines of plain JavaScript, no framework, plus 800 lines of tests — because it is meant to be forked for one job.
 
 ## Config
 
