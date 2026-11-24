@@ -1,4 +1,5 @@
 import { strict as assert } from 'node:assert';
+import path from 'node:path';
 import test from 'node:test';
 
 import { ConfigError, parseConfig, resolveSecret } from '../src/config.js';
@@ -9,8 +10,11 @@ const MINIMAL = {
 };
 
 test('a minimal config gets usable defaults', () => {
-  const config = parseConfig(MINIMAL, { baseDir: '/tmp/x' });
-  assert.equal(config.stateDir, '/tmp/x/.watchdiff');
+  // Build the expected path with `path` instead of writing a POSIX literal:
+  // stateDir comes out of path.resolve, so on Windows it is D:\base\.watchdiff.
+  const baseDir = path.resolve('base-dir');
+  const config = parseConfig(MINIMAL, { baseDir });
+  assert.equal(config.stateDir, path.join(baseDir, '.watchdiff'));
   const [watcher] = config.watchers;
   assert.equal(watcher.mode, 'value');
   assert.equal(watcher.method, 'GET');

@@ -10,6 +10,9 @@ jobs:
   test:
     runs-on: ${{ matrix.os }}
     strategy:
+      # Without this, the first platform to fail cancels the rest and hides
+      # whether the problem is one platform or all of them.
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         node: ['20', '22', '24']
