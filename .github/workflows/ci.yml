@@ -19,4 +19,7 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       # No dependencies to install: the test suite runs on a bare checkout.
-      - run: node --test "test/*.test.js"
+      # `npm test` runs a bare `node --test`: the runner discovers test/ itself.
+      # A "test/*.test.js" argument would break on Node 20, which does not expand
+      # the pattern, and on Windows, where the shell does not expand it either.
+      - run: npm test
