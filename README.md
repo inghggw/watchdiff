@@ -4,39 +4,45 @@ Watch a web page or a JSON API and get told when the part you care about changes
 
 ```console
 $ watchdiff check
-🆕 SECOP II — software en Tolima: línea base guardada (25 ítems)
-🆕 Node.js — versión LTS publicada: línea base guardada (19 caracteres)
+🆕 SECOP II — software tenders in Tolima: baseline stored (25 items)
+🆕 Node.js — latest published release: baseline stored (19 characters)
 
-$ watchdiff check          # 10 minutes later, 5 new tenders published
-🔔 SECOP II — software en Tolima: 5 nuevo(s)
-· Node.js — versión LTS publicada: sin cambios
+2 checked: 0 changed, 2 baseline, 0 held, 0 errored
+
+$ watchdiff check          # later, 5 more tenders in the watched list
+🔔 SECOP II — software tenders in Tolima: 5 new
+· Node.js — latest published release: no change
+
+2 checked: 1 changed, 0 baseline, 0 held, 0 errored
 ```
 
 The alert that went out, verbatim:
 
 ```
-🔔 SECOP II — software en Tolima
-5 nuevo(s)
+🔔 SECOP II — software tenders in Tolima
+5 new
 
 https://www.datos.gov.co/resource/p6dx-8zbt.json?$select=id_del_proceso…
 
-Nuevos (5):
+New (5):
   + CO1.REQ.10974164
   + CO1.REQ.10970545
   + CO1.REQ.10970083
   + CO1.REQ.10953822
   + CO1.REQ.10953329
 
-Total ahora: 30 (antes 25)
+Total now: 30 (was 25)
 
-Verificado: 2026-11-21T21:09:57.830Z
+Checked: 2026-11-25T01:19:41.259Z
 ```
+
+That is a real run against the live [SECOP II dataset](https://www.datos.gov.co/d/p6dx-8zbt), not a mock-up. Set `"language": "es"` and the same alert arrives in Spanish.
 
 ## Install
 
 ```bash
 git clone <this repo> && cd watchdiff
-npm test          # 57 tests, no network, no dependencies to install
+npm test          # 59 tests, no network, no dependencies to install
 npx .  init       # writes a sample watchdiff.config.json
 npx .  check      # first run stores the baseline and stays quiet
 ```
@@ -51,13 +57,14 @@ Check these first — if one fits, use it:
 - **[urlwatch](https://github.com/thp/urlwatch)** — the mature CLI in this space (Python, YAML, many reporters).
 - **Hosted:** Visualping, Distill.io, Sken.io.
 
-`watchdiff` exists for the narrow case those make awkward: a monitor you drop into a server next to a cron line, with no container, no Python, no database and no web UI; whose alerts you can shape; and whose behaviour under quiet hours, cooldowns and delivery failures is exactly specified. It is also deliberately readable — about 1,500 lines of plain JavaScript, no framework, plus 800 lines of tests — because it is meant to be forked for one job.
+`watchdiff` exists for the narrow case those make awkward: a monitor you drop into a server next to a cron line, with no container, no Python, no database and no web UI; whose alerts you can shape; and whose behaviour under quiet hours, cooldowns and delivery failures is exactly specified. It is also deliberately readable — about 1,650 lines of plain JavaScript, no framework, plus 930 lines of tests — because it is meant to be forked for one job.
 
 ## Config
 
 ```json
 {
   "stateDir": ".watchdiff",
+  "language": "en",
   "defaults": { "retries": 2, "errorThreshold": 2, "notify": ["telegram"] },
   "notifiers": {
     "telegram": { "type": "telegram", "botToken": "env:TELEGRAM_BOT_TOKEN", "chatId": "env:TELEGRAM_CHAT_ID" },
@@ -82,6 +89,12 @@ Check these first — if one fits, use it:
 ```
 
 Secrets never go in the file: any string may be `env:VARIABLE_NAME`.
+
+`language` sets the text a human reads — `en` (default) or `es`. It can also be set per watcher, so one
+alert goes to an English-speaking client and another to a Spanish-speaking one from the same config.
+It changes the prose only: the JSON in `--json`, in a webhook payload and in `alerts.jsonl` keeps the
+same field names and numbers either way. Every reader-facing string lives in
+[`src/messages.js`](src/messages.js); adding a language means adding one object there.
 
 ### Extractors — what to watch inside the response
 
@@ -169,7 +182,7 @@ src/state.js    One atomically written JSON baseline per watcher
 src/runner.js   Quiet hours, cooldowns, error thresholds, delivery outcomes
 src/notify.js   console / telegram / webhook / jsonl / command
 src/cli.js      check · watch · status · init
-test/           57 tests, including end-to-end runs against a local HTTP server
+test/           59 tests, including end-to-end runs against a local HTTP server
 ```
 
 ## Limitations

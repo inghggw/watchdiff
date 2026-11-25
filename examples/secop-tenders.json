@@ -1,6 +1,7 @@
 {
-  "_comment": "Public procurement: alert on new tenders in one department and one UNSPSC family. Point watchdiff at the API the portal itself uses, never at the HTML.",
+  "_comment": "Public procurement: alert on new tenders in one department and one UNSPSC family. Point watchdiff at the API the portal itself uses, never at the HTML. Spanish alerts, because the reader is Colombian.",
   "stateDir": ".watchdiff",
+  "language": "es",
   "defaults": {
     "retries": 2,
     "errorThreshold": 2,

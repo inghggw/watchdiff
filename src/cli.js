@@ -9,6 +9,7 @@ import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { ConfigError, loadConfig } from './config.js';
+import { messagesFor } from './messages.js';
 import { StateStore } from './state.js';
 import { runAll } from './runner.js';
 
@@ -43,6 +44,8 @@ Exit codes:
 
 const SAMPLE_CONFIG = {
   stateDir: '.watchdiff',
+  /** Language of the alerts a human reads: "en" or "es". */
+  language: 'en',
   defaults: {
     timeoutMs: 20000,
     retries: 2,
@@ -59,7 +62,7 @@ const SAMPLE_CONFIG = {
   watchers: [
     {
       name: 'secop-software-tolima',
-      label: 'SECOP II — software en Tolima',
+      label: 'SECOP II — software tenders in Tolima',
       url: 'https://www.datos.gov.co/resource/p6dx-8zbt.json?$select=id_del_proceso,nombre_del_procedimiento&$where=departamento_entidad%20%3D%20%27Tolima%27%20AND%20starts_with(codigo_principal_de_categoria,%20%27V1.8111%27)%20AND%20estado_del_procedimiento%20!%3D%20%27Borrador%27&$order=fecha_de_publicacion_del%20DESC&$limit=25',
       extract: { type: 'json', path: '[*].id_del_proceso' },
       mode: 'list',
@@ -69,7 +72,7 @@ const SAMPLE_CONFIG = {
     },
     {
       name: 'node-lts',
-      label: 'Node.js — versión LTS publicada',
+      label: 'Node.js — latest published release',
       url: 'https://nodejs.org/dist/index.json',
       extract: { type: 'json', path: '[0].version' },
       mode: 'value',
@@ -142,27 +145,28 @@ export function parseArgs(argv) {
 
 const ICONS = { ok: '·', changed: '🔔', deferred: '⏸', baseline: '🆕', error: '⚠️', undelivered: '📵' };
 
-function printEntry(entry, log) {
+function printEntry(entry, log, t) {
   const icon = ICONS[entry.status] ?? '?';
   const extra =
     entry.status === 'deferred'
-      ? ` (retenido: ${entry.deferredReason})`
+      ? t.cliHeld(entry.deferredReason)
       : entry.status === 'undelivered'
-        ? ` (no se pudo entregar: ${entry.error})`
+        ? t.cliUndelivered(entry.error)
         : entry.attempts > 1
-          ? ` (${entry.attempts} intentos)`
+          ? t.cliAttempts(entry.attempts)
           : '';
   log(`${icon} ${entry.label}: ${entry.summary}${extra}`);
 }
 
 async function commandCheck(options, log, deps) {
   const config = await loadConfig(options.config);
+  const t = messagesFor(config.language);
   const result = await runAll(config, {
     only: options.only.length ? options.only : undefined,
     digestTo: options.digest.length ? options.digest : undefined,
     dry: options.dry,
     deps,
-    onEntry: options.json || options.quiet ? undefined : (entry) => printEntry(entry, log),
+    onEntry: options.json || options.quiet ? undefined : (entry) => printEntry(entry, log, t),
   });
 
   if (options.json) {
@@ -171,21 +175,18 @@ async function commandCheck(options, log, deps) {
     const { counts } = result;
     if (options.quiet) {
       for (const entry of result.entries) {
-        if (entry.status !== 'ok') printEntry(entry, log);
+        if (entry.status !== 'ok') printEntry(entry, log, t);
       }
     }
-    log(
-      `\n${counts.total} verificado(s): ${counts.changed} con cambios, ${counts.baseline} línea base, ` +
-        `${counts.deferred} retenido(s), ${counts.errors} con error${options.dry ? ' — modo --dry, nada enviado' : ''}`,
-    );
+    log(`\n${t.cliCounts(counts)}${options.dry ? t.cliDryNote : ''}`);
     for (const entry of result.entries) {
       for (const notification of entry.notifications ?? []) {
-        if (!notification.ok) log(`   envío fallido → ${notification.notifier}: ${notification.error}`);
+        if (!notification.ok) log(t.cliSendFailed(notification.notifier, notification.error));
       }
     }
     if (result.digest) {
       for (const notification of result.digest.notifications) {
-        if (!notification.ok) log(`   resumen fallido → ${notification.notifier}: ${notification.error}`);
+        if (!notification.ok) log(t.cliDigestFailed(notification.notifier, notification.error));
       }
     }
   }
@@ -243,12 +244,13 @@ async function commandStatus(options, log) {
     log(JSON.stringify({ stateDir: config.stateDir, watchers: rows }, null, 2));
     return 0;
   }
-  log(`Estado en ${config.stateDir}\n`);
+  const t = messagesFor(config.language);
+  log(t.cliStatusHeader(config.stateDir));
   for (const row of rows) {
     log(
-      `${row.enabled ? '' : '(off) '}${row.watcher} [${row.mode}] — ${row.checks} chequeos, ${row.changes} cambios` +
-        `${row.lastCheck ? `, último ${row.lastCheck}` : ', nunca verificado'}` +
-        `${row.consecutiveErrors ? `, ${row.consecutiveErrors} error(es) seguidos: ${row.lastError}` : ''}`,
+      `${row.enabled ? '' : '(off) '}${row.watcher} [${row.mode}] — ${t.cliStatusCounts(row.checks, row.changes)}` +
+        `${row.lastCheck ? t.cliStatusLast(row.lastCheck) : t.cliStatusNever}` +
+        `${row.consecutiveErrors ? t.cliStatusErrors(row.consecutiveErrors, row.lastError) : ''}`,
     );
   }
   return 0;
@@ -262,8 +264,11 @@ async function commandInit(options, log) {
     if (error.code === 'EEXIST') throw new ConfigError(`${target} already exists; delete it or pass -c another-file.json`);
     throw error;
   }
-  log(`Config de ejemplo escrita en ${target}`);
-  log('Siguiente paso: watchdiff check --dry   (lee, compara y no envía nada)');
+  // `init` writes the config before one exists, so there is no language to read
+  // from it yet: the sample it writes sets the default, and so does this notice.
+  const t = messagesFor(SAMPLE_CONFIG.language);
+  log(t.cliInitWritten(target));
+  log(t.cliInitNextStep);
   return 0;
 }
 

@@ -22,7 +22,7 @@ test('multiline text is summarized as a line count and diffed', () => {
   const before = 'linea uno\nlinea dos\nlinea tres';
   const after = 'linea uno\nlinea tres\nlinea cuatro';
   const result = compare({ kind: 'single', value: before }, { kind: 'single', value: after }, { mode: 'value' });
-  assert.match(result.summary, /1 línea\(s\) nueva\(s\), 1 eliminada\(s\)/);
+  assert.match(result.summary, /1 new line\(s\), 1 removed/);
   assert.deepEqual(result.diff, { removed: ['linea dos'], added: ['linea cuatro'] });
 });
 
@@ -36,7 +36,7 @@ test('list mode alerts on new items only, by default', () => {
   assert.deepEqual(result.added, ['c']);
   assert.deepEqual(result.removed, ['a']);
   assert.equal(result.significant, true);
-  assert.match(result.summary, /1 nuevo\(s\), 1 eliminado\(s\)/);
+  assert.match(result.summary, /1 new, 1 removed/);
 });
 
 test('with alertOn=added, items only disappearing is a change but not an alert', () => {
@@ -91,7 +91,7 @@ test('a percentage threshold is applied on top of the absolute one', () => {
 test('a non-numeric reading in number mode is reported, not treated as zero', () => {
   const result = compare({ kind: 'single', value: '100' }, { kind: 'single', value: 'No definido' }, { mode: 'number' });
   assert.equal(result.changed, false);
-  assert.match(result.error, /no es un número/);
+  assert.match(result.error, /is not a number/);
 });
 
 test('a change in the shape of the data is flagged on its own', () => {
@@ -110,34 +110,64 @@ test('the alert carries the label, the url, the items and when it was checked', 
   };
   const result = compare({ kind: 'list', items: ['a'] }, { kind: 'list', items: ['a', 'b', 'c', 'd'] }, watcher);
   const text = renderAlert(watcher, result, { now: NOW, state: { lastChange: '2026-11-01T10:00:00.000Z' } });
-  assert.match(text, /^3 nuevo\(s\)/, 'the body opens with what changed; the label is the title');
+  assert.match(text, /^3 new/, 'the body opens with what changed; the label is the title');
   assert.doesNotMatch(text.split('\n')[0], /SECOP II/, 'no duplicated label in every channel');
   assert.match(text, /datos\.gov\.co/);
   assert.match(text, /\+ b/);
-  assert.match(text, /… y 1 más/, 'long lists are capped so the message survives Telegram');
-  assert.match(text, /Total ahora: 4 \(antes 1\)/);
-  assert.match(text, /Cambio anterior: 2026-11-01T10:00:00\.000Z/);
+  assert.match(text, /… and 1 more/, 'long lists are capped so the message survives Telegram');
+  assert.match(text, /Total now: 4 \(was 1\)/);
+  assert.match(text, /Previous change: 2026-11-01T10:00:00\.000Z/);
+  assert.match(text, /Checked: 2026-11-21T20:00:00\.000Z/);
+});
+
+test('language: "es" translates the reader-facing text, and only that', () => {
+  const watcher = {
+    label: 'SECOP II — software en Tolima',
+    url: 'https://www.datos.gov.co/resource/p6dx-8zbt.json',
+    mode: 'list',
+    alertOn: 'added',
+    language: 'es',
+  };
+  const result = compare({ kind: 'list', items: ['a'] }, { kind: 'list', items: ['a', 'b'] }, watcher);
+  assert.match(result.summary, /1 nuevo\(s\)/);
+
+  const text = renderAlert(watcher, result, { now: NOW });
+  assert.match(text, /Total ahora: 2 \(antes 1\)/);
   assert.match(text, /Verificado: 2026-11-21T20:00:00\.000Z/);
+  // The machine-readable side is language-independent: a config change must not
+  // move the numbers a webhook or a dashboard reads.
+  assert.deepEqual(result.added, ['b']);
+  assert.equal(result.total, 2);
+
+  const unknown = { ...watcher, language: 'klingon' };
+  const fallback = compare({ kind: 'list', items: ['a'] }, { kind: 'list', items: ['a', 'b'] }, unknown);
+  assert.match(fallback.summary, /1 new/, 'an unknown language falls back to English instead of crashing');
 });
 
 test('the digest says "nothing changed" out loud — silence looks like a dead monitor', () => {
   const quiet = renderDigest(
     [
-      { label: 'a', status: 'ok', significant: false, summary: 'sin cambios' },
-      { label: 'b', status: 'ok', significant: false, summary: 'sin cambios' },
+      { label: 'a', status: 'ok', significant: false, summary: 'no change' },
+      { label: 'b', status: 'ok', significant: false, summary: 'no change' },
     ],
     { now: NOW },
   );
-  assert.match(quiet, /✅ Resumen — 2 vigilados, sin novedades/);
+  assert.match(quiet, /✅ Summary — 2 watched, no changes/);
 
   const busy = renderDigest(
     [
-      { label: 'a', status: 'changed', significant: true, summary: '2 nuevo(s)' },
+      { label: 'a', status: 'changed', significant: true, summary: '2 new' },
       { label: 'b', status: 'error', significant: false, error: 'HTTP 503' },
     ],
     { now: NOW },
   );
-  assert.match(busy, /📋 Resumen — 1 de 2 con novedades/);
+  assert.match(busy, /📋 Summary — 1 of 2 with changes/);
   assert.match(busy, /⚠️ b: HTTP 503/);
-  assert.match(busy, /1 no se pudo\(ieron\) leer/);
+  assert.match(busy, /1 could not be read/);
+
+  const spanish = renderDigest([{ label: 'a', status: 'ok', significant: false, summary: 'sin cambios' }], {
+    now: NOW,
+    language: 'es',
+  });
+  assert.match(spanish, /✅ Resumen — 1 vigilados, sin novedades/);
 });

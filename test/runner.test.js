@@ -131,7 +131,7 @@ test('a persistent failure is reported only after errorThreshold consecutive mis
   const second = await checkWatcher(parsed.watchers[0], context);
   assert.equal(second.consecutiveErrors, 2);
   assert.equal(capture.sent.length, 1);
-  assert.match(capture.sent[0], /fallo de verificación \(2 seguidos\)/);
+  assert.match(capture.sent[0], /check failed \(2 in a row\)/);
 });
 
 test('a 404 is not retried: the page being gone is news, not a glitch', async () => {
@@ -176,7 +176,7 @@ test('a change during quiet hours is held back AND the baseline is kept, so it i
     now: () => new Date('2026-11-22T02:00:00Z'),
   });
   assert.equal(night.status, 'deferred');
-  assert.equal(night.deferredReason, 'horario de silencio');
+  assert.equal(night.deferredReason, 'quiet hours');
   assert.equal(capture.sent.length, 0);
 
   const morning = await checkWatcher(parsed.watchers[0], {
@@ -212,7 +212,7 @@ test('a cooldown batches a second change instead of dropping it', async () => {
   server.state.body = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
   const held = await checkWatcher(parsed.watchers[0], at('2026-11-21T10:10:00Z'));
   assert.equal(held.status, 'deferred');
-  assert.match(held.deferredReason, /cooldown \(55 min restantes\)/);
+  assert.match(held.deferredReason, /cooldown \(55 min remaining\)/);
 
   const later = await checkWatcher(parsed.watchers[0], at('2026-11-21T11:30:00Z'));
   assert.equal(later.status, 'changed');
@@ -307,7 +307,7 @@ test('runAll reports counts, honours --only and can send a digest', async () => 
   assert.equal(only.counts.changed, 1);
 
   const digest = await runAll(parsed, { store, deps: { logger: capture.logger }, digestTo: ['log'] });
-  assert.ok(digest.digest.text.includes('Resumen'));
+  assert.ok(digest.digest.text.includes('Summary'));
   assert.equal(digest.digest.notifications[0].ok, true);
 
   await assert.rejects(() => runAll(parsed, { store, only: ['nope'] }), /no watcher named "nope"/);

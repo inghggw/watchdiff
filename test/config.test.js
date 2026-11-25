@@ -171,3 +171,28 @@ test('an empty watcher list is a configuration error', () => {
   assert.throws(() => parseConfig(null), /config must be a JSON object/);
   assert.ok(ConfigError.prototype instanceof Error);
 });
+
+test('language defaults to en, can be set per watcher, and is rejected when unsupported', () => {
+  assert.equal(parseConfig(MINIMAL).language, 'en');
+  assert.equal(parseConfig(MINIMAL).watchers[0].language, 'en');
+
+  const spanish = parseConfig({ ...MINIMAL, language: 'es' });
+  assert.equal(spanish.language, 'es');
+  assert.equal(spanish.watchers[0].language, 'es', 'the watcher carries it so renderers need no extra argument');
+
+  const mixed = parseConfig({
+    ...MINIMAL,
+    language: 'es',
+    watchers: [
+      { name: 'a', url: 'https://example.test/a', notify: ['log'] },
+      { name: 'b', url: 'https://example.test/b', notify: ['log'], language: 'en' },
+    ],
+  });
+  assert.deepEqual(
+    mixed.watchers.map((w) => w.language),
+    ['es', 'en'],
+    'one buyer can get Spanish alerts and another English from the same config',
+  );
+
+  assert.throws(() => parseConfig({ ...MINIMAL, language: 'klingon' }), /language must be one of en, es/);
+});

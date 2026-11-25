@@ -59,7 +59,7 @@ test('init writes a runnable sample config and refuses to overwrite it', async (
   const written = JSON.parse(await readFile(file, 'utf8'));
   assert.ok(written.watchers.length >= 1);
   assert.ok(written.notifiers.log);
-  assert.match(out.text(), /Config de ejemplo escrita/);
+  assert.match(out.text(), /Sample config written/);
 
   const second = collector();
   assert.equal(await main(['init', '-c', file], { log: second.log, errorLog: second.log }), 1);
@@ -112,7 +112,7 @@ test('check runs end to end, and --exit-change reports a change through the exit
 
   const first = collector();
   assert.equal(await main(['check', '-c', file], { log: first.log, errorLog: first.log }), 0);
-  assert.match(first.text(), /🆕 Local API: línea base guardada/);
+  assert.match(first.text(), /🆕 Local API: baseline stored/);
 
   body.value = 'v2';
   const second = collector();
@@ -147,5 +147,5 @@ test('a watcher that cannot be read exits 2', async () => {
   );
   const out = collector();
   assert.equal(await main(['check', '-c', file], { log: out.log, errorLog: out.log }), 2);
-  assert.match(out.text(), /⚠️ dead: no se pudo leer la página/);
+  assert.match(out.text(), /⚠️ dead: could not read the page/);
 });

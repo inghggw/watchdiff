@@ -10,6 +10,8 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES } from './messages.js';
+
 export class ConfigError extends Error {
   constructor(message) {
     super(message);
@@ -29,7 +31,20 @@ const DEFAULTS = {
   notifyOnError: true,
   /** Consecutive failed checks before the error is reported. One blip is not an outage. */
   errorThreshold: 2,
+  /** Language of the text a human reads. Alerts are the product; see messages.js. */
+  language: DEFAULT_LANGUAGE,
 };
+
+/** Rejects an unsupported language at load time instead of alerting in English by surprise. */
+function validateLanguage(value, where) {
+  if (value === undefined) return undefined;
+  if (!SUPPORTED_LANGUAGES.includes(value)) {
+    throw new ConfigError(
+      `${where}.language must be one of ${SUPPORTED_LANGUAGES.join(', ')}, got ${JSON.stringify(value)}`,
+    );
+  }
+  return value;
+}
 
 /** Resolves `env:NAME` references. Any other string is returned unchanged. */
 export function resolveSecret(value, env = process.env, where = 'value') {
@@ -206,6 +221,9 @@ function validateWatcher(raw, index, notifierNames, defaults) {
     notifyOnError: raw.notifyOnError ?? defaults.notifyOnError,
     quietHours: parseQuietHours(raw.quietHours, where) ?? defaults.quietHours,
     enabled: raw.enabled !== false,
+    // Carried on the watcher so every renderer can reach it without a second
+    // argument threaded through compare() and renderAlert().
+    language: validateLanguage(raw.language, where) ?? defaults.language,
   };
 
   if (mode === 'number') {
@@ -238,6 +256,10 @@ export function parseConfig(raw, { baseDir = process.cwd(), env = process.env } 
     notifyOnError: rawDefaults.notifyOnError ?? DEFAULTS.notifyOnError,
     notify: rawDefaults.notify,
     quietHours: parseQuietHours(rawDefaults.quietHours, 'defaults'),
+    language:
+      validateLanguage(rawDefaults.language, 'defaults') ??
+      validateLanguage(raw.language, 'config') ??
+      DEFAULT_LANGUAGE,
   };
   if (defaults.notify !== undefined && (!Array.isArray(defaults.notify) || defaults.notify.some((n) => typeof n !== 'string'))) {
     throw new ConfigError('defaults.notify must be an array of notifier names');
@@ -265,7 +287,7 @@ export function parseConfig(raw, { baseDir = process.cwd(), env = process.env } 
   }
 
   const stateDir = path.resolve(baseDir, raw.stateDir ?? '.watchdiff');
-  return { stateDir, defaults, notifiers, watchers };
+  return { stateDir, defaults, notifiers, watchers, language: defaults.language };
 }
 
 export async function loadConfig(file, { env = process.env } = {}) {

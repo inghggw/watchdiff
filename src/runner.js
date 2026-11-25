@@ -11,6 +11,7 @@
 import { compare, renderAlert, renderDigest } from './diff.js';
 import { ExtractError, extract } from './extract.js';
 import { fetchBody } from './http.js';
+import { messagesFor } from './messages.js';
 import { notifyAll } from './notify.js';
 import { StateStore, hashValue, initialState } from './state.js';
 
@@ -71,6 +72,7 @@ function advance(state, reading, now, { changed }) {
  */
 export async function checkWatcher(watcher, context) {
   const { store, notifiers, dry = false, deps = {} } = context;
+  const t = messagesFor(watcher.language);
   const now = context.now ? context.now() : new Date();
   const base = { name: watcher.name, label: watcher.label, url: watcher.url, mode: watcher.mode, checkedAt: now.toISOString() };
   const previous = await store.read(watcher.name);
@@ -82,7 +84,7 @@ export async function checkWatcher(watcher, context) {
     reading = extract(fetchInfo.body, watcher.extract);
   } catch (error) {
     const isExtract = error instanceof ExtractError;
-    const message = `${isExtract ? 'no se pudo extraer el dato' : 'no se pudo leer la página'}: ${error.message}`;
+    const message = `${isExtract ? t.extractFailed : t.fetchFailed}: ${error.message}`;
     const consecutiveErrors = (previous?.consecutiveErrors ?? 0) + 1;
     const state = {
       ...(previous ?? { name: watcher.name, firstSeen: now.toISOString(), checks: 0, changeCount: 0 }),
@@ -103,8 +105,8 @@ export async function checkWatcher(watcher, context) {
         watcher.notify,
         notifiers,
         {
-          title: `⚠️ ${watcher.label} — fallo de verificación (${consecutiveErrors} seguidos)`,
-          text: [message, '', watcher.url, '', `Verificado: ${now.toISOString()}`].join('\n'),
+          title: t.checkFailedTitle(watcher.label, consecutiveErrors),
+          text: [message, '', watcher.url, '', t.alertChecked(now.toISOString())].join('\n'),
           watcher,
           result: { summary: message },
         },
@@ -125,7 +127,7 @@ export async function checkWatcher(watcher, context) {
       ...base,
       status: 'baseline',
       significant: false,
-      summary: `línea base guardada (${reading.kind === 'list' ? `${reading.items.length} ítems` : `${reading.value.length} caracteres`})`,
+      summary: reading.kind === 'list' ? t.baselineItems(reading.items.length) : t.baselineChars(reading.value.length),
       attempts: fetchInfo.attempts,
     };
   }
@@ -151,7 +153,7 @@ export async function checkWatcher(watcher, context) {
   const cooldown = cooldownRemainingMs(previous, watcher, now);
   if (quiet || cooldown > 0) {
     entry.status = 'deferred';
-    entry.deferredReason = quiet ? 'horario de silencio' : `cooldown (${Math.ceil(cooldown / 60_000)} min restantes)`;
+    entry.deferredReason = quiet ? t.quietHours : t.cooldown(Math.ceil(cooldown / 60_000));
     // Baseline deliberately untouched: the change is re-detected next run.
     if (!dry) {
       await store.write(watcher.name, { ...previous, lastCheck: now.toISOString(), consecutiveErrors: 0, deferred: entry.deferredReason });
@@ -211,7 +213,7 @@ export async function runAll(config, options = {}) {
   let digest = null;
   if (options.digestTo?.length) {
     const now = options.now ? options.now() : new Date();
-    const text = renderDigest(entries, { now });
+    const text = renderDigest(entries, { now, language: config.language });
     digest = {
       text,
       notifications: options.dry

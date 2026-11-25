@@ -34,7 +34,7 @@ const config = parseConfig({
   watchers: [
     {
       name: 'tenders',
-      label: 'Licitaciones de mi categoría',
+      label: 'New tenders in my category',
       url,
       extract: { type: 'json', path: 'tenders[*].id' },
       mode: 'list',
@@ -43,7 +43,7 @@ const config = parseConfig({
     },
     {
       name: 'price',
-      label: 'Precio del plan Pro',
+      label: 'Competitor Pro plan price',
       url,
       extract: { type: 'json', path: 'price' },
       mode: 'number',
@@ -62,17 +62,17 @@ const run = async (title, options = {}) => {
   }
 };
 
-await run('1. Primer chequeo — guarda la línea base y no avisa nada');
-await run('2. Nada cambió — silencio');
+await run('1. First check — stores the baseline and alerts nobody');
+await run('2. Nothing changed — silence, not a false alarm');
 
 feed.tenders.push({ id: 'T-1003' }, { id: 'T-1004' });
 feed.price = '1.252.000';
-await run('3. Dos licitaciones nuevas y el precio sube 0,16% — avisa de las licitaciones, el precio no pasa el umbral del 5%');
+await run('3. Two new tenders, price up 0.16% — the tenders are news, the price is under the 5% threshold');
 
 feed.price = '1.500.000';
-await run('4. El precio sube 19,8% — ahora sí pasa el umbral');
+await run('4. Price up 19.8% — now it clears the threshold');
 
-// Ahora con horario de silencio: 23:00–07:00 UTC.
+// Quiet hours from here on: 23:00–07:00 UTC.
 config.watchers[0].quietHours = { from: '23:00', to: '07:00', tz: 'UTC' };
 const atHour = (hour) => () => {
   const moment = new Date();
@@ -81,13 +81,14 @@ const atHour = (hour) => () => {
 };
 
 feed.tenders.push({ id: 'T-1005' });
-await run('5. Llega una licitación a las 04:00 UTC, dentro del horario de silencio — se retiene y la línea base NO avanza', {
+await run('5. A tender arrives at 04:00 UTC, inside quiet hours — held back, and the baseline does NOT advance', {
   now: atHour(4),
 });
-await run('6. A las 13:00 UTC el cambio retenido se entrega: no se perdió nada', { now: atHour(13) });
+await run('6. At 13:00 UTC the held change is delivered: nothing was lost', { now: atHour(13) });
 
-await run('7. Resumen "sigo vigilando" aunque no haya novedades', { digestTo: ['log'] });
+await run('7. The "still watching, nothing changed" digest', { digestTo: ['log'] });
 
 await new Promise((resolve) => server.close(resolve));
 await rm(dir, { recursive: true, force: true });
-console.log('\nDemo terminada. Nada quedó en disco.');
+console.log('\nDemo over. Nothing was left on disk.');
+console.log('Add "language": "es" to the config and the same run comes out in Spanish.');
